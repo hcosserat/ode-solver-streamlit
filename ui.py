@@ -44,7 +44,7 @@ def render_equation_input():
     """Render the ODE input section."""
     st.sidebar.header("Équation")
     st.session_state.ode_string = st.sidebar.text_area(
-        "Entrez votre ODE :",
+        "Entrez votre EDO :",
         value=st.session_state.ode_string,
         height=100
     )
@@ -60,7 +60,7 @@ def render_equation_input():
         st.session_state.ode_order = ode_order
         st.sidebar.success(f"Parsing réussi, ordre détécté : {st.session_state.ode_order}")
         try:
-            st.sidebar.latex(f"\\text{{ODE : }} {sympy.latex(st.session_state.ode_eq)}")
+            st.sidebar.latex(f"\\text{{EDO : }} {sympy.latex(st.session_state.ode_eq)}")
         except Exception as e:
             st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
 
@@ -93,7 +93,7 @@ def render_initial_conditions():
                 # Store IC: y_val at x_val for the i-th derivative
                 st.session_state.ics_values[i] = {'x0': x0_val, 'y0': y0_val}
     else:
-        st.sidebar.info("Entrez une ODE valide pour rentrer les conditions initiales.")
+        st.sidebar.info("Entrez une EDO valide pour rentrer les conditions initiales.")
         st.session_state.use_ics = False  # Disable if no order
 
     return st.session_state.use_ics, st.session_state.ics_values
@@ -174,4 +174,4 @@ def display_solution():
                 elif error:
                     st.info(error)
     else:
-        st.info("Entrez une ODE et cliquez sur \"Résoudre\" pour calculer une solution.")
+        st.info("Entrez une EDO et cliquez sur \"Résoudre\" pour calculer une solution.")
