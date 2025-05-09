@@ -4,7 +4,7 @@ from ui import (
     render_equation_input,
     render_initial_conditions,
     render_solve_button,
-    display_solution
+    display_solution, show_intructions
 )
 
 
@@ -26,6 +26,9 @@ def main():
 
     # Display solution
     display_solution()
+
+    # Show instructions
+    show_intructions()
 
 
 if __name__ == "__main__":
