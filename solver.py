@@ -1,5 +1,6 @@
 import sympy
 from sympy import Function, Derivative, Eq, dsolve, symbols, S
+from sympy import gamma as Gamma, zeta as Zeta, beta as Beta
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 
 # --- SymPy Setup ---
@@ -24,8 +25,13 @@ local_dict = {
     'sqrt': sympy.sqrt,
     'pi': sympy.pi,
     'E': sympy.E,
-    'S': S
+    'S': S,
+    "Gamma": Gamma,
+    "Zeta": Zeta,
+    "Beta": Beta,
 }
+
+local_dict.update({str(s): s for s in symbols('gamma zeta beta lambda omega mu rho sigma k F0 Omega r K g L m a b c')})
 
 
 def get_ode_order(equation, func):

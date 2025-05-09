@@ -123,7 +123,7 @@ def render_solve_button():
 
 def display_solution():
     """Display the solution and plot if available."""
-    st.header("Solution")
+    st.header(":material/lightbulb: Solution")
     if st.session_state.solution is not None:
         if isinstance(st.session_state.solution, str):  # Error message
             st.error(st.session_state.solution)
@@ -166,19 +166,20 @@ def display_solution():
 
 def show_intructions():
     st.markdown("""
-        **Instructions :**
+        ### :material/info: Instructions :
         1.  Entrez votre EDO ci-dessous. Utilisez `y(x)` pour la fonction solution et `x` pour la variable.
             * Pour les dérivées, utilisez `Derivative(y(x), x)` pour $y'(x)$ et `Derivative(y(x), (x, n))` pour $y^(n)(x)$.
             * Vous pouvez écrire des équations comme `Eq(Derivative(y(x), x) + y(x), 0)` ou simplement l'expression `Derivative(y(x), x) + y(x)` (qui sera supposément égale à zéro).
         2.  L'application détectera l'ordre de l'équation et propose de rentrer des conditions initiales. Les réponses seront données avec des variables si aucune condition n'est précisée.
         4.  Appuyez sur "Résoudre" pour obtenir une solution et un graphe si possible.
 
-        **Exemples :**
-        Équations linéaires de 1er ordre
+        ### :material/assignment: Exemples :
+        
+        #### Équations linéaires de 1er ordre
 
         $y'(x) = -k y(x)$ : `Eq(Derivative(y(x), x), -k * y(x))`
 
-        Oscillateurs
+        #### Oscillateurs
 
         $y''(x) + \omega^2 y(x) = 0$ : `Eq(Derivative(y(x), x, x) + omega**2 * y(x), 0)`
 
@@ -186,7 +187,7 @@ def show_intructions():
 
         $y''(x) + 2\zeta \omega y'(x) + \omega^2 y(x) = F_0 \cos(\Omega x)$ : `Eq(Derivative(y(x), x, x) + 2*zeta*omega*Derivative(y(x), x) + omega**2 * y(x), F0 * cos(Omega * x))`
 
-        Équations issues de la physique
+        #### Équations issues de la physique
 
         $m y''(x) = -mg - \gamma y'(x)$ : `Eq(m * Derivative(y(x), x, x), -m*g - gamma * Derivative(y(x), x))`
 
@@ -194,15 +195,17 @@ def show_intructions():
 
         $y'(x) = r y(x)\left(1 - \dfrac{y(x)}{K}\\right)$ : `Eq(Derivative(y(x), x), r * y(x) * (1 - y(x)/K))`
 
-        Équations non linéaires
+        #### Équations non linéaires
 
         $y''(x) + \dfrac{g}{L} \sin(y(x)) = 0$ : `Eq(Derivative(y(x), x, x) + (g/L) * sin(y(x)), 0)`
 
         $y''(x) - \mu (1 - y(x)^2)y'(x) + y(x) = 0$ : `Eq(Derivative(y(x), x, x) - mu * (1 - y(x)**2) * Derivative(y(x), x) + y(x), 0)`
 
-        Équations spéciales
+        #### Équations spéciales
 
         $y'(x) + p(x)y(x) = q(x)y(x)^n$ (équation de Bernoulli) : `Eq(Derivative(y(x), x) + p(x)*y(x), q(x)*y(x)**n)`
 
         $y'(x) = a(x)y(x)^2 + b(x)y(x) + c(x)$ (équation de Riccati) : `Eq(Derivative(y(x), x), a(x)*y(x)**2 + b(x)*y(x) + c(x))`
         """)
+    st.markdown("""---""")
+    st.markdown("""Fait avec :streamlit: Streamlit et SymPy""")
