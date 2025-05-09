@@ -1,0 +1,103 @@
+import sympy
+from sympy import Function, Derivative, Eq, dsolve, symbols, S
+from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
+
+# --- SymPy Setup ---
+# x is the independent variable
+x_sym = symbols('x')
+# y is the function y(x)
+y_func_name = Function('y')
+y_x = y_func_name(x_sym)
+
+# Setup for parsing expressions
+transformations = standard_transformations + (implicit_multiplication_application,)
+local_dict = {
+    'y': y_func_name,
+    'x': x_sym,
+    'Eq': Eq,
+    'Derivative': Derivative,
+    'sin': sympy.sin,
+    'cos': sympy.cos,
+    'exp': sympy.exp,
+    'ln': sympy.ln,
+    'log': sympy.log,
+    'sqrt': sympy.sqrt,
+    'pi': sympy.pi,
+    'E': sympy.E,
+    'S': S
+}
+
+
+def get_ode_order(equation, func):
+    """Determines the order of the ODE with respect to func."""
+    if equation is None:
+        return 0
+
+    max_order = 0
+    # Check both sides of the equation if it's an Eq object
+    if isinstance(equation, Eq):
+        expr_to_check = [equation.lhs, equation.rhs]
+    else:
+        expr_to_check = [equation]
+
+    for expr in expr_to_check:
+        for atom in expr.atoms(Derivative):
+            if atom.expr == func:
+                current_order = 0
+                for var_info in atom.args[1:]:
+                    if isinstance(var_info, sympy.core.containers.Tuple):
+                        diff_var, order = var_info
+                        if diff_var == x_sym:
+                            current_order += order
+                    else:
+                        diff_var = var_info
+                        if diff_var == x_sym:
+                            current_order += 1
+
+                max_order = max(max_order, current_order)
+
+    return max_order
+
+
+def get_solution_rhs(solution, func):
+    """Extracts the RHS of the solution if it's an Eq, otherwise returns the solution."""
+    if isinstance(solution, Eq) and solution.lhs == func:
+        return solution.rhs
+    elif isinstance(solution, list) and solution:
+        if isinstance(solution[0], Eq) and solution[0].lhs == func:
+            return solution[0].rhs
+    return None
+
+
+def parse_ode(ode_string):
+    """Parse an ODE string into a sympy equation."""
+    if not ode_string:
+        return None, None, "Équation vide"
+
+    try:
+        parsed_ode = parse_expr(ode_string, local_dict=local_dict, transformations=transformations)
+
+        if not isinstance(parsed_ode, Eq):
+            # If user just entered an expression, assume it's LHS = 0
+            ode_eq = Eq(parsed_ode, 0)
+        else:
+            ode_eq = parsed_ode
+
+        ode_order = get_ode_order(ode_eq, y_x)
+        return ode_eq, ode_order, ""
+    except Exception as e:
+        return None, 0, f"Erreur de parsing, verifiez la syntaxe ({e})."
+
+
+def solve_ode(ode_eq, ics_dict=None):
+    """Solve the ODE with optional initial conditions."""
+    try:
+        if ics_dict:
+            solution = dsolve(ode_eq, y_x, ics=ics_dict)
+        else:
+            solution = dsolve(ode_eq, y_x)
+        return solution, ""
+    except NotImplementedError:
+        return None, "L'équation n'est pas supportée par l'application pour le moment."
+    except Exception as e:
+        return None, f"Une erreur est survenue durant la résolution : {e}"
