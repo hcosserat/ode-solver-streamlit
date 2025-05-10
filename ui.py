@@ -35,6 +35,8 @@ def initialize_session_state():
         st.session_state.system_equations = []
     if 'system_funcs' not in st.session_state:
         st.session_state.system_funcs = []
+    if 'use_other_mod_for_solution_display' not in st.session_state:
+        st.session_state.use_other_mod_for_solution_display = False
 
 
 def render_equation_input():
@@ -116,58 +118,60 @@ def prepare_ics_dict(use_ics, ics_values):
 
 def render_system_input():
     """Render the system of ODEs input section."""
-    if st.session_state.is_system:
-        st.sidebar.header("Système d'EDO")
+    st.sidebar.header("Système d'EDO")
 
-        # Display existing equations
-        for i, eq in enumerate(st.session_state.system_equations):
-            cols = st.sidebar.columns([8, 1], vertical_alignment="bottom")
-            with cols[0]:
-                updated_eq = st.text_input(
-                    f"Équation {i + 1}",
-                    value=eq,
-                    key=f"system_eq_{i}"
-                )
+    # Display existing equations
+    for i, eq in enumerate(st.session_state.system_equations):
+        cols = st.sidebar.columns([8, 1], vertical_alignment="bottom")
+        with cols[0]:
+            updated_eq = st.text_input(
+                f"Équation {i + 1}",
+                value=eq,
+                key=f"system_eq_{i}",
+                icon=":material/function:"
+            )
 
-                ode_eq, _, error_message = parse_ode(updated_eq)
+            ode_eq, _, error_message = parse_ode(updated_eq)
 
-                if error_message:
-                    st.sidebar.error(error_message)
-                else:
-                    try:
-                        st.sidebar.latex(sympy.latex(ode_eq))
-                    except Exception as e:
-                        st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
-
-                st.session_state.system_equations[i] = updated_eq
-            with cols[1]:
-                if st.button("🗑", key=f"delete_eq_{i}"):
-                    st.session_state.system_equations.pop(i)
-                    st.session_state.system_funcs.pop(i)
-                    st.rerun()
-
-        # Add new equation button
-        if st.sidebar.button("Ajouter une équation", use_container_width=True):
-            # Generate next function name (g, h, p, q, etc. after f)
-            func_names = ['f', 'g', 'h', 'p', 'q', 'r', 's', 't']
-            next_idx = len(st.session_state.system_funcs)
-            if next_idx < len(func_names):
-                next_func_name = func_names[next_idx]
+            if error_message:
+                st.sidebar.error(error_message)
             else:
-                next_func_name = f"f{next_idx}"
+                try:
+                    st.sidebar.latex(sympy.latex(ode_eq))
+                except Exception as e:
+                    st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
 
-            # Create new function symbol
-            next_func = sympy.Function(next_func_name)(x_sym)
-            st.session_state.system_funcs.append(next_func)
+            st.session_state.system_equations[i] = updated_eq
+        with cols[1]:
+            if st.button("🗑", key=f"delete_eq_{i}"):
+                st.session_state.system_equations.pop(i)
+                st.session_state.system_funcs.pop(i)
+                st.rerun()
 
-            # Add empty equation template
-            st.session_state.system_equations.append(f"{next_func_name}'(x) = 0")
-            st.rerun()
+    # Add new equation button
+    if st.sidebar.button("Ajouter une équation", use_container_width=True):
+        # Generate next function name (g, h, p, q, etc. after f)
+        func_names = ['f', 'g', 'h', 'p', 'q', 'r', 's', 't']
+        next_idx = len(st.session_state.system_funcs)
+        if next_idx < len(func_names):
+            next_func_name = func_names[next_idx]
+        else:
+            next_func_name = f"f{next_idx}"
+
+        # Create new function symbol
+        next_func = sympy.Function(next_func_name)(x_sym)
+        st.session_state.system_funcs.append(next_func)
+
+        # Add empty equation template
+        st.session_state.system_equations.append(f"{next_func_name}'(x) = 0")
+        st.rerun()
 
 
 def render_solve_button():
     """Render the solve button and handle solving."""
-    ode_ready_to_be_solved = st.session_state.ode_eq is not None and st.session_state.ode_parsed_successfully
+    ode_ready_to_be_solved = (st.session_state.ode_eq is not None
+                              and st.session_state.ode_parsed_successfully
+                              and st.session_state.ode_order > 0)
 
     solve_button = st.sidebar.button("Résoudre", type="primary", use_container_width=True,
                                      disabled=(not ode_ready_to_be_solved))
@@ -180,9 +184,11 @@ def render_solve_button():
         if st.session_state.ode_eq is not None:
             st.session_state.system_equations = [st.session_state.ode_string]
             st.session_state.system_funcs = [f_x]  # Start with f(x)
+        st.session_state.use_other_mod_for_solution_display = True
         st.rerun()
 
     if solve_button:
+        st.session_state.use_other_mod_for_solution_display = False
         solve_single_ode()
 
 
@@ -201,9 +207,11 @@ def render_solve_system_button():
         st.session_state.is_system = False
         st.session_state.system_equations = []
         st.session_state.system_funcs = []
+        st.session_state.use_other_mod_for_solution_display = True
         st.rerun()
 
     if solve_button:
+        st.session_state.use_other_mod_for_solution_display = False
         solve_system()
 
 
@@ -257,13 +265,19 @@ def display_solution():
     if solution is not None:
         st.header(":material/lightbulb: Solution")
 
+        use_system_display = st.session_state.is_system
+
+        if st.session_state.use_other_mod_for_solution_display:
+            use_system_display = not use_system_display
+
         if isinstance(solution, str):
             show_error(solution, "st.session_state.solution is str", "display_solution")
 
         elif solution is None or solution == []:
             st.warning("Aucune solution n'a été trouvée, l'équation est peut-être triviale (par exemple 0=0).")
 
-        elif st.session_state.is_system:
+        elif use_system_display:
+            print(st.session_state)
             display_system_solution(solution)
 
         elif isinstance(solution, list):
@@ -345,9 +359,11 @@ def display_solutions(solutions):
 def show_intructions():
     st.markdown("""
         ### :material/info: Instructions :
-        1.  Entrez votre EDO ci-dessous. Utilisez `f(x)` pour la fonction solution et `x` pour la variable.
+        1.  Entrez votre EDO sur le paneau de gauche. Utilisez `f(x)` pour la fonction solution et `x` pour la variable.
             * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)` ou `Derivative(f(x), (x, 3))`
             * Vous pouvez écrire des équations comme `f'(x) + f(x) = 0` ou simplement l'expression `f'(x) + f(x)` (qui sera supposément égale à zéro).
+            * Vous pouvez utiliser d'autres fonctions dans votre EDO, comme des fonctions classiques (cos, log, exp, Gamma...) ou des fonctions inconnues (parmi g, h, o, p, q, r, s, t, u, v et w)
+            * Certaines lettres grecques sont disponibles (écrites en minuscules), voir les exemples
         2.  L'application détectera l'ordre de l'équation et propose de rentrer des conditions initiales. Les réponses seront données avec des variables si aucune condition n'est précisée.
         4.  Appuyez sur "Résoudre" pour obtenir une solution et un graphe si possible.
 
@@ -384,6 +400,13 @@ def show_intructions():
         $f'(x) + p(x)f(x) = q(x)f(x)^n$ (équation de Bernoulli), par exemple : `f'(x) + 2*f(x)/x = f(x)^3`
 
         $f'(x) = a(x)f(x)^2 + b(x)f(x) + c(x)$ (équation de Riccati), par exemple : `f(x) = cos(x)*f(x)**2 - f(x)/(x^2) + 2`
+        
+        #### Systèmes d'équations
+        
+        $\\begin{cases}f'(x) = f(x) \\\\ g'(x) = f(x) + g(x) \end{cases}$ : `f'(x) = f(x)`, `g'(x) = f(x) + g(x)`
+        
+        $\\begin{cases}f'(x) = 3f(x) + g(x) \\\\ g'(x) = f(x) + 3g(x) \end{cases}$ : `f'(x) = 3*f(x) + g(x)`, `g'(x) = f(x) + 3*g(x)`
+        
         """)
     st.markdown("""---""")
     st.markdown("""Fait avec :streamlit: Streamlit, SymPy et Matplotlib""")
