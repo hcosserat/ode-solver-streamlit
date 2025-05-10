@@ -14,7 +14,7 @@ def create_solution_plot(sol_rhs, x_sym, x_range=(-5, 5), num_points=1000):
         unresolved_constants = [s for s in free_symbols_in_sol if s != x_sym and not s.is_number]
 
         if unresolved_constants:
-            return None, f"Les constantes {unresolved_constants} doivent être précisées pour le graphe"
+            return None, f"Les constantes {unresolved_constants} doivent être précisées pour le graphe"  # todo tracer si pas bcp, demander l'input
 
         # Prepare for numerical evaluation
         modules_for_lambdify = ['numpy', {'Heaviside': lambda x: np.heaviside(x, 0.5)}]

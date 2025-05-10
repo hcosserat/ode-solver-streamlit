@@ -2,18 +2,19 @@ import sympy
 from sympy import Function, Derivative, Eq, dsolve, symbols, S
 from sympy import gamma as Gamma, zeta as Zeta, beta as Beta
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
+import re
 
 # --- SymPy Setup ---
 # x is the independent variable
 x_sym = symbols('x')
-# y is the function y(x)
-y_func_name = Function('y')
-y_x = y_func_name(x_sym)
+# f is the function f(x)
+f_func_name = Function('f')
+f_x = f_func_name(x_sym)
 
 # Setup for parsing expressions
 transformations = standard_transformations + (implicit_multiplication_application,)
 local_dict = {
-    'y': y_func_name,
+    'f': f_func_name,
     'x': x_sym,
     'Eq': Eq,
     'Derivative': Derivative,
@@ -31,7 +32,7 @@ local_dict = {
     "Beta": Beta,
 }
 
-local_dict.update({str(s): s for s in symbols('gamma zeta beta lambda omega mu rho sigma k F0 Omega r K g L m a b c')})
+local_dict.update({str(s): s for s in symbols('gamma zeta beta lambda omega mu rho sigma F0 Omega')})
 
 
 def get_ode_order(equation, func):
@@ -75,10 +76,43 @@ def get_solution_rhs(solution, func):
     return None
 
 
+def prepare_ode_input(ode_string: str):
+    """
+    Preprocesses ODE input by converting:
+    - f'(x), f''(x), etc. to Derivative(f(x), (x, n))
+    - f^(n)(x) to Derivative(f(x), (x, n))
+    - F(f, x) = G(f, x) to Eq(F(f, x), G(f, x))
+    """
+    # Handle f'(x), f''(x) notation
+    pattern1 = r"f('+)\(x\)"
+
+    def replacement1(match):
+        derivative_order = len(match.group(1))
+        return f"Derivative(f(x), (x, {derivative_order}))"
+
+    # Handle f^(n)(x) notation
+    pattern2 = r"f\^?\((\d+)\)\(x\)"
+
+    def replacement2(match):
+        derivative_order = int(match.group(1))
+        return f"Derivative(f(x), (x, {derivative_order}))"
+
+    processed_string = re.sub(pattern1, replacement1, ode_string)
+    processed_string = re.sub(pattern2, replacement2, processed_string)
+
+    # Handle natural equality notation
+    if len(sides := processed_string.split("=")) == 2:
+        processed_string = f"Eq({sides[0]}, {sides[1]})"
+
+    return processed_string
+
+
 def parse_ode(ode_string):
     """Parse an ODE string into a sympy equation."""
     if not ode_string:
         return None, None, "Équation vide"
+
+    ode_string = prepare_ode_input(ode_string)
 
     try:
         parsed_ode = parse_expr(ode_string, local_dict=local_dict, transformations=transformations)
@@ -89,7 +123,7 @@ def parse_ode(ode_string):
         else:
             ode_eq = parsed_ode
 
-        ode_order = get_ode_order(ode_eq, y_x)
+        ode_order = get_ode_order(ode_eq, f_x)
         return ode_eq, ode_order, ""
     except Exception as e:
         return None, 0, f"Erreur de parsing, verifiez la syntaxe ({e})."
@@ -99,9 +133,9 @@ def solve_ode(ode_eq, ics_dict=None):
     """Solve the ODE with optional initial conditions."""
     try:
         if ics_dict:
-            solution = dsolve(ode_eq, y_x, ics=ics_dict)
+            solution = dsolve(ode_eq, f_x, ics=ics_dict)
         else:
-            solution = dsolve(ode_eq, y_x)
+            solution = dsolve(ode_eq, f_x)
         return solution, ""
     except NotImplementedError:
         return None, "L'équation n'est pas supportée par l'application pour le moment."

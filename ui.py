@@ -2,7 +2,7 @@ import streamlit as st
 import sympy
 
 from plotter import create_solution_plot
-from solver import x_sym, y_x, parse_ode, solve_ode, get_solution_rhs
+from solver import x_sym, f_x, parse_ode, solve_ode, get_solution_rhs
 
 
 def setup_page():
@@ -14,7 +14,7 @@ def setup_page():
 def initialize_session_state():
     """Initialize the session state variables."""
     if 'ode_string' not in st.session_state:
-        st.session_state.ode_string = "Derivative(y(x), x) + y(x)"
+        st.session_state.ode_string = "f'(x) - 3*f(x) = cos(x)"
     if 'ode_eq' not in st.session_state:
         st.session_state.ode_eq = None
     if 'ode_order' not in st.session_state:
@@ -45,7 +45,7 @@ def render_equation_input():
     else:
         st.session_state.ode_eq = ode_eq
         st.session_state.ode_order = ode_order
-        st.sidebar.success(f"Parsing réussi, ordre détécté : {st.session_state.ode_order}")
+        st.sidebar.success(f"Parsing réussi, ordre détecté : {st.session_state.ode_order}")
         try:
             st.sidebar.latex(f"\\text{{EDO : }} {sympy.latex(st.session_state.ode_eq)}")
         except Exception as e:
@@ -67,7 +67,7 @@ def render_initial_conditions():
             st.session_state.ics_values = {}  # Reset if checkbox state changes
             st.sidebar.markdown(f"Rentrez jusqu'à {st.session_state.ode_order} conditions :")
             for i in range(st.session_state.ode_order):
-                deriv_label = "y" + "".join(["'" for _ in range(i)])
+                deriv_label = "f" + "".join(["'" for _ in range(i)])
                 cols = st.sidebar.columns([2, 1, 1])
                 with cols[0]:
                     condition_label = f"{deriv_label}(x₀) = y₀"
@@ -95,10 +95,10 @@ def prepare_ics_dict(use_ics, ics_values):
             y_val = vals['y0']
             if i == 0:
                 # Condition for y(x0)
-                ics_dict[y_x.subs(x_sym, x_val)] = y_val
+                ics_dict[f_x.subs(x_sym, x_val)] = y_val
             else:
                 # Condition for n-th derivative y^(n)(x0)
-                ics_dict[y_x.diff((x_sym, i)).subs(x_sym, x_val)] = y_val
+                ics_dict[f_x.diff((x_sym, i)).subs(x_sym, x_val)] = y_val
     return ics_dict
 
 
@@ -141,9 +141,6 @@ def display_solution():
                     current_solution = current_solution[0]
 
             if current_solution is not None:
-                st.subheader("Version texte :")
-                st.code(str(current_solution), language=None)
-
                 st.subheader("Version LaTeX :")
                 try:
                     st.latex(sympy.latex(current_solution))
@@ -151,9 +148,12 @@ def display_solution():
                     st.warning(f"Échec du rendu LaTeX : {e}")
                     st.text(sympy.latex(current_solution))  # Show raw LaTeX if rendering fails
 
+                st.subheader("Version texte :")
+                st.code(str(current_solution), language=None)
+
                 # Plot the solution if possible
                 st.subheader("Graphe")
-                sol_rhs = get_solution_rhs(current_solution, y_x)
+                sol_rhs = get_solution_rhs(current_solution, f_x)
                 fig, error = create_solution_plot(sol_rhs, x_sym)
 
                 if fig:
