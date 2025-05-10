@@ -1,33 +1,30 @@
+import streamlit as st
+
 from ui import (
     setup_page,
     initialize_session_state,
     render_equation_input,
+    render_system_input,
+    render_solve_system_button,
     render_initial_conditions,
     render_solve_button,
-    display_solution, show_intructions
+    display_solution, show_intructions,
 )
 
 
 def main():
-    # Setup the page
     setup_page()
-
-    # Initialize session state
     initialize_session_state()
 
-    # Render equation input
-    render_equation_input()
+    if st.session_state.is_system:
+        render_system_input()
+        render_solve_system_button()
+    else:
+        render_equation_input()
+        render_solve_button()
+        render_initial_conditions()
 
-    # Render initial conditions
-    render_initial_conditions()
-
-    # Render solve button
-    render_solve_button()
-
-    # Display solution
     display_solution()
-
-    # Show instructions
     show_intructions()
 
 

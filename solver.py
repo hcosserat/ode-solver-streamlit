@@ -1,21 +1,15 @@
+import re
+
 import sympy
 from sympy import Function, Derivative, Eq, dsolve, symbols, S
 from sympy import gamma as Gamma, zeta as Zeta, beta as Beta
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
-import re
 
 # --- SymPy Setup ---
-# x is the independent variable
-x_sym = symbols('x')
-# f is the function f(x)
-f_func_name = Function('f')
-f_x = f_func_name(x_sym)
-
 # Setup for parsing expressions
 transformations = standard_transformations + (implicit_multiplication_application,)
 local_dict = {
-    'f': f_func_name,
-    'x': x_sym,
+    'x': symbols("x"),
     'Eq': Eq,
     'Derivative': Derivative,
     'sin': sympy.sin,
@@ -31,8 +25,14 @@ local_dict = {
     "Zeta": Zeta,
     "Beta": Beta,
 }
-
+local_dict.update({letter: Function(letter) for letter in "fghopqrstuvw"})
 local_dict.update({str(s): s for s in symbols('gamma zeta beta omega mu rho sigma F0 Omega')})
+
+# x is the independent variable
+x_sym = local_dict["x"]
+# f is the function f(x)
+f_func_name = local_dict["f"]
+f_x = f_func_name(x_sym)
 
 
 def get_ode_order(equation, func):
@@ -79,24 +79,26 @@ def get_solution_rhs(solution, func):
 def prepare_ode_input(ode_string: str):
     """
     Preprocesses ODE input by converting:
-    - f'(x), f''(x), etc. to Derivative(f(x), (x, n))
-    - f^(n)(x) to Derivative(f(x), (x, n))
+    - f'(x), g'(x), h'(x), etc. to Derivative(f(x), (x, n))
+    - f^(n)(x), g^(n)(x), etc. to Derivative(f(x), (x, n))
     - F(f, x) = G(f, x) to Eq(F(f, x), G(f, x))
     - a^b to a**b
     """
-    # Handle f'(x), f''(x) notation
-    pattern1 = r"f('+)\(x\)"
+    # Handle f'(x), g'(x), etc. notation for any single letter function except x
+    pattern1 = r"([a-wyzA-Z])('+)\(x\)"
 
     def replacement1(match):
-        derivative_order = len(match.group(1))
-        return f"Derivative(f(x), (x, {derivative_order}))"
+        func_name = match.group(1)
+        derivative_order = len(match.group(2))
+        return f"Derivative({func_name}(x), (x, {derivative_order}))"
 
-    # Handle f^(n)(x) notation
-    pattern2 = r"f\^?\((\d+)\)\(x\)"
+    # Handle f^(n)(x), g^(n)(x), etc. notation for any single letter function except x
+    pattern2 = r"([a-wyzA-Z])\^?\((\d+)\)\(x\)"
 
     def replacement2(match):
-        derivative_order = int(match.group(1))
-        return f"Derivative(f(x), (x, {derivative_order}))"
+        func_name = match.group(1)
+        derivative_order = int(match.group(2))
+        return f"Derivative({func_name}(x), (x, {derivative_order}))"
 
     processed_string = re.sub(pattern1, replacement1, ode_string)
     processed_string = re.sub(pattern2, replacement2, processed_string)
@@ -130,7 +132,6 @@ def parse_ode(ode_string):
         ode_order = get_ode_order(ode_eq, f_x)
         return ode_eq, ode_order, ""
     except Exception as e:
-        print(ode_string)
         return None, 0, f"Erreur de parsing, verifiez la syntaxe ({e})."
 
 
@@ -144,5 +145,7 @@ def solve_ode(ode_eq, ics_dict=None):
         return solution, ""
     except NotImplementedError:
         return None, "L'équation n'est pas supportée par l'application pour le moment."
+    except ValueError as e:
+        return None, f"Une erreur est survenue durant la résolution ({e})"
     except Exception as e:
-        return None, f"Une erreur est survenue durant la résolution : {e}"
+        return None, f"Une erreur imprévue est survenue durant la résolution ({e})"
