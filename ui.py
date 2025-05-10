@@ -1,3 +1,4 @@
+import pyperclip
 import streamlit as st
 import sympy
 
@@ -15,6 +16,8 @@ def initialize_session_state():
     """Initialize the session state variables."""
     if 'ode_string' not in st.session_state:
         st.session_state.ode_string = "f'(x) - 3*f(x) = cos(x)"
+    if 'ode_parsed_successfully' not in st.session_state:
+        st.session_state.ode_parsed_successfully = True
     if 'ode_eq' not in st.session_state:
         st.session_state.ode_eq = None
     if 'ode_order' not in st.session_state:
@@ -38,16 +41,18 @@ def render_equation_input():
 
     ode_eq, ode_order, error_message = parse_ode(st.session_state.ode_string)
 
+    st.session_state.ode_eq = ode_eq
+
     if error_message:
         st.sidebar.error(error_message)
+        st.session_state.ode_parsed_successfully = False
         st.session_state.ode_eq = None
         st.session_state.ode_order = 0
     else:
-        st.session_state.ode_eq = ode_eq
+        st.session_state.ode_parsed_successfully = True
         st.session_state.ode_order = ode_order
-        st.sidebar.success(f"Parsing réussi, ordre détecté : {st.session_state.ode_order}")
         try:
-            st.sidebar.latex(f"\\text{{EDO : }} {sympy.latex(st.session_state.ode_eq)}")
+            st.sidebar.latex(sympy.latex(st.session_state.ode_eq))
         except Exception as e:
             st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
 
@@ -104,9 +109,11 @@ def prepare_ics_dict(use_ics, ics_values):
 
 def render_solve_button():
     """Render the solve button and handle solving."""
+    ode_ready_to_be_solved = st.session_state.ode_eq is not None and st.session_state.ode_parsed_successfully
     if st.sidebar.button("Résoudre", type="primary", use_container_width=True,
-                         disabled=(st.session_state.ode_eq is None)):
-        if st.session_state.ode_eq is not None:
+                         disabled=(not ode_ready_to_be_solved)):
+
+        if ode_ready_to_be_solved:
             ics_dict = prepare_ics_dict(st.session_state.use_ics, st.session_state.ics_values)
 
             with st.spinner("Chargement..."):
@@ -123,8 +130,12 @@ def render_solve_button():
 
 def display_solution():
     """Display the solution and plot if available."""
-    st.header(":material/lightbulb: Solution")
     if st.session_state.solution is not None:
+        col1, col2 = st.columns([5, 1], vertical_alignment="bottom")  # col1 for header, col2 for "copy" button
+
+        with col1:
+            st.header(":material/lightbulb: Solution")
+
         if isinstance(st.session_state.solution, str):  # Error message
             st.error(st.session_state.solution)
         elif st.session_state.solution is None:  # Empty list or None if dsolve fails quietly
@@ -141,15 +152,18 @@ def display_solution():
                     current_solution = current_solution[0]
 
             if current_solution is not None:
-                st.subheader("Version LaTeX :")
                 try:
                     st.latex(sympy.latex(current_solution))
                 except Exception as e:
                     st.warning(f"Échec du rendu LaTeX : {e}")
                     st.text(sympy.latex(current_solution))  # Show raw LaTeX if rendering fails
 
-                st.subheader("Version texte :")
-                st.code(str(current_solution), language=None)
+                with col2:
+                    with st.popover("Copier", icon=":material/content_copy:"):
+                        if st.button("LaTeX", type="tertiary"):
+                            pyperclip.copy(sympy.latex(current_solution))
+                        if st.button("Texte", type="tertiary"):
+                            pyperclip.copy(f"f(x) = {current_solution.rhs}")
 
                 # Plot the solution if possible
                 st.subheader("Graphe")
@@ -167,9 +181,9 @@ def display_solution():
 def show_intructions():
     st.markdown("""
         ### :material/info: Instructions :
-        1.  Entrez votre EDO ci-dessous. Utilisez `y(x)` pour la fonction solution et `x` pour la variable.
-            * Pour les dérivées, utilisez `Derivative(y(x), x)` pour $y'(x)$ et `Derivative(y(x), (x, n))` pour $y^(n)(x)$.
-            * Vous pouvez écrire des équations comme `Eq(Derivative(y(x), x) + y(x), 0)` ou simplement l'expression `Derivative(y(x), x) + y(x)` (qui sera supposément égale à zéro).
+        1.  Entrez votre EDO ci-dessous. Utilisez `f(x)` pour la fonction solution et `x` pour la variable.
+            * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)` ou `Derivative(f(x), (x, 3))`
+            * Vous pouvez écrire des équations comme `f'(x) + f(x) = 0` ou simplement l'expression `f'(x) + f(x)` (qui sera supposément égale à zéro).
         2.  L'application détectera l'ordre de l'équation et propose de rentrer des conditions initiales. Les réponses seront données avec des variables si aucune condition n'est précisée.
         4.  Appuyez sur "Résoudre" pour obtenir une solution et un graphe si possible.
 
@@ -177,35 +191,35 @@ def show_intructions():
         
         #### Équations linéaires de 1er ordre
 
-        $y'(x) = -k y(x)$ : `Eq(Derivative(y(x), x), -k * y(x))`
+        $f'(x) = -k f(x)$ : `f'(x) = -k*f(x)`
 
         #### Oscillateurs
 
-        $y''(x) + \omega^2 y(x) = 0$ : `Eq(Derivative(y(x), x, x) + omega**2 * y(x), 0)`
+        $f''(x) + \omega^2 f(x) = 0$ : `f''(x) + omega^2 * f(x)`
 
-        $y''(x) + 2\zeta \omega y'(x) + \omega^2 y(x) = 0$ : `Eq(Derivative(y(x), x, x) + 2*zeta*omega*Derivative(y(x), x) + omega**2 * y(x), 0)`
+        $f''(x) + 2\zeta \omega f'(x) + \omega^2 f(x) = 0$ : `f''(x) + 2 * zeta * omega * f'(x) + omega^2 * f(x)`
 
-        $y''(x) + 2\zeta \omega y'(x) + \omega^2 y(x) = F_0 \cos(\Omega x)$ : `Eq(Derivative(y(x), x, x) + 2*zeta*omega*Derivative(y(x), x) + omega**2 * y(x), F0 * cos(Omega * x))`
+        $f''(x) + 2\zeta \omega f'(x) + \omega^2 f(x) = F_0 \cos(\Omega x)$ : `f''(x) + 2 * zeta * omega * f'(x) + omega^2 * f(x) = F0 * cos(Omega * x)`
 
         #### Équations issues de la physique
 
-        $m y''(x) = -mg - \gamma y'(x)$ : `Eq(m * Derivative(y(x), x, x), -m*g - gamma * Derivative(y(x), x))`
+        $m f''(x) = -mg - \gamma f'(x)$ : `m * f''(x) = -mg - gamma * f'(x)`
 
-        $y'(x) = -\lambda y(x)$ : `Eq(Derivative(y(x), x), -lam * y(x))`
+        $f'(x) = -\\rho f(x)$ : `f'(x) = -rho * f(x)`
 
-        $y'(x) = r y(x)\left(1 - \dfrac{y(x)}{K}\\right)$ : `Eq(Derivative(y(x), x), r * y(x) * (1 - y(x)/K))`
+        $f'(x) = r f(x)\left(1 - \dfrac{f(x)}{K}\\right)$ : `f'(x) = r * f(x) * (1 - f(x)/K)`
 
         #### Équations non linéaires
 
-        $y''(x) + \dfrac{g}{L} \sin(y(x)) = 0$ : `Eq(Derivative(y(x), x, x) + (g/L) * sin(y(x)), 0)`
+        $f''(x) + \dfrac{g}{L} \sin(f(x)) = 0$ : `f''(x) + (g/L) * sin(f(x))`
 
-        $y''(x) - \mu (1 - y(x)^2)y'(x) + y(x) = 0$ : `Eq(Derivative(y(x), x, x) - mu * (1 - y(x)**2) * Derivative(y(x), x) + y(x), 0)`
+        $f''(x) - \mu (1 - f(x)^2)f'(x) + f(x) = 0$ : `f''(x) - mu * (1 - f(x)**2) * f'(x) + f(x)`
 
         #### Équations spéciales
 
-        $y'(x) + p(x)y(x) = q(x)y(x)^n$ (équation de Bernoulli) : `Eq(Derivative(y(x), x) + p(x)*y(x), q(x)*y(x)**n)`
+        $f'(x) + p(x)f(x) = q(x)f(x)^n$ (équation de Bernoulli), par exemple : `f'(x) + 2*f(x)/x = f(x)^3`
 
-        $y'(x) = a(x)y(x)^2 + b(x)y(x) + c(x)$ (équation de Riccati) : `Eq(Derivative(y(x), x), a(x)*y(x)**2 + b(x)*y(x) + c(x))`
+        $f'(x) = a(x)f(x)^2 + b(x)f(x) + c(x)$ (équation de Riccati), par exemple : `f(x) = cos(x)*f(x)**2 - f(x)/(x^2) + 2`
         """)
     st.markdown("""---""")
-    st.markdown("""Fait avec :streamlit: Streamlit et SymPy""")
+    st.markdown("""Fait avec :streamlit: Streamlit, SymPy et Matplotlib""")

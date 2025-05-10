@@ -32,7 +32,7 @@ local_dict = {
     "Beta": Beta,
 }
 
-local_dict.update({str(s): s for s in symbols('gamma zeta beta lambda omega mu rho sigma F0 Omega')})
+local_dict.update({str(s): s for s in symbols('gamma zeta beta omega mu rho sigma F0 Omega')})
 
 
 def get_ode_order(equation, func):
@@ -82,6 +82,7 @@ def prepare_ode_input(ode_string: str):
     - f'(x), f''(x), etc. to Derivative(f(x), (x, n))
     - f^(n)(x) to Derivative(f(x), (x, n))
     - F(f, x) = G(f, x) to Eq(F(f, x), G(f, x))
+    - a^b to a**b
     """
     # Handle f'(x), f''(x) notation
     pattern1 = r"f('+)\(x\)"
@@ -103,6 +104,9 @@ def prepare_ode_input(ode_string: str):
     # Handle natural equality notation
     if len(sides := processed_string.split("=")) == 2:
         processed_string = f"Eq({sides[0]}, {sides[1]})"
+
+    # Handle exponentiation
+    processed_string = processed_string.replace("^", "**")
 
     return processed_string
 
@@ -126,6 +130,7 @@ def parse_ode(ode_string):
         ode_order = get_ode_order(ode_eq, f_x)
         return ode_eq, ode_order, ""
     except Exception as e:
+        print(ode_string)
         return None, 0, f"Erreur de parsing, verifiez la syntaxe ({e})."
 
 

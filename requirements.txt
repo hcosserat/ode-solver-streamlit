@@ -28,6 +28,7 @@ protobuf==6.30.2
 pyarrow==20.0.0
 pydeck==0.9.1
 pyparsing==3.2.3
+pyperclip==1.9.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 referencing==0.36.2
