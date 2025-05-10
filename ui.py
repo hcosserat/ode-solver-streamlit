@@ -131,27 +131,29 @@ def render_solve_button():
 def display_solution():
     """Display the solution and plot if available."""
     if st.session_state.solution is not None:
-        col1, col2 = st.columns([5, 1], vertical_alignment="bottom")  # col1 for header, col2 for "copy" button
+        col1, col2 = st.columns([10, 1], vertical_alignment="bottom")  # col1 for header, col2 for "copy" button
 
         with col1:
             st.header(":material/lightbulb: Solution")
 
         if isinstance(st.session_state.solution, str):  # Error message
             st.error(st.session_state.solution)
+
         elif st.session_state.solution is None:  # Empty list or None if dsolve fails quietly
             st.warning("Aucune solution n'a été trouvée, l'équation est peut-être triviale (par exemple 0=0).")
-        else:
-            # If dsolve returns a list, take the first one for simplicity
-            current_solution = st.session_state.solution
-            if isinstance(current_solution, list):
-                if not current_solution:
-                    st.warning("Aucune solution n'a été trouvée, l'équation est peut-être triviale (par exemple 0=0).")
-                    current_solution = None  # skip further processing
-                else:
-                    st.info(f"Plusieurs ({len(current_solution)}) solution(s) ont été trouvée(s), affichage de la première.")
-                    current_solution = current_solution[0]
 
-            if current_solution is not None:
+        else:
+            current_solution = st.session_state.solution
+
+            if isinstance(current_solution, list):
+                st.info(f"Plusieurs ({len(current_solution)}) solutions ont été trouvées :")
+                for solution in current_solution:
+                    try:
+                        st.latex(sympy.latex(solution))
+                    except Exception as e:
+                        st.warning(f"Échec du rendu LaTeX : {e}")
+                        st.text(sympy.latex(solution))  # Show raw LaTeX if rendering fails
+            else:
                 try:
                     st.latex(sympy.latex(current_solution))
                 except Exception as e:
@@ -159,7 +161,7 @@ def display_solution():
                     st.text(sympy.latex(current_solution))  # Show raw LaTeX if rendering fails
 
                 with col2:
-                    with st.popover("Copier", icon=":material/content_copy:"):
+                    with st.popover(":material/content_copy:"):
                         if st.button("LaTeX", type="tertiary"):
                             pyperclip.copy(sympy.latex(current_solution))
                         if st.button("Texte", type="tertiary"):
