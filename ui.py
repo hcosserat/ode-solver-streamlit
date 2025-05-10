@@ -33,10 +33,10 @@ def initialize_session_state():
 def render_equation_input():
     """Render the ODE input section."""
     st.sidebar.header("Équation")
-    st.session_state.ode_string = st.sidebar.text_area(
+    st.session_state.ode_string = st.sidebar.text_input(
         "Entrez votre EDO :",
         value=st.session_state.ode_string,
-        height=100
+        icon=":material/function:"
     )
 
     ode_eq, ode_order, error_message = parse_ode(st.session_state.ode_string)
@@ -139,45 +139,73 @@ def display_solution():
         if isinstance(st.session_state.solution, str):  # Error message
             st.error(st.session_state.solution)
 
-        elif st.session_state.solution is None:  # Empty list or None if dsolve fails quietly
+        elif st.session_state.solution is None or st.session_state.solution == []:  # Empty list or None if dsolve fails quietly
             st.warning("Aucune solution n'a été trouvée, l'équation est peut-être triviale (par exemple 0=0).")
 
         else:
             current_solution = st.session_state.solution
 
             if isinstance(current_solution, list):
-                st.info(f"Plusieurs ({len(current_solution)}) solutions ont été trouvées :")
-                for solution in current_solution:
-                    try:
-                        st.latex(sympy.latex(solution))
-                    except Exception as e:
-                        st.warning(f"Échec du rendu LaTeX : {e}")
-                        st.text(sympy.latex(solution))  # Show raw LaTeX if rendering fails
+                display_multiple_solutions(current_solution)
             else:
-                try:
-                    st.latex(sympy.latex(current_solution))
-                except Exception as e:
-                    st.warning(f"Échec du rendu LaTeX : {e}")
-                    st.text(sympy.latex(current_solution))  # Show raw LaTeX if rendering fails
-
-                with col2:
-                    with st.popover(":material/content_copy:"):
-                        if st.button("LaTeX", type="tertiary"):
-                            pyperclip.copy(sympy.latex(current_solution))
-                        if st.button("Texte", type="tertiary"):
-                            pyperclip.copy(f"f(x) = {current_solution.rhs}")
-
-                # Plot the solution if possible
-                st.subheader("Graphe")
-                sol_rhs = get_solution_rhs(current_solution, f_x)
-                fig, error = create_solution_plot(sol_rhs, x_sym)
-
-                if fig:
-                    st.pyplot(fig)
-                elif error:
-                    st.info(error)
+                display_unique_solution(col2, current_solution)
     else:
         st.info("Entrez une EDO et cliquez sur \"Résoudre\" pour calculer une solution.")
+
+
+def display_unique_solution(col2, current_solution):
+    try:
+        st.latex(sympy.latex(current_solution))
+    except Exception as e:
+        st.warning(f"Échec du rendu LaTeX : {e}")
+        st.text(sympy.latex(current_solution))  # Show raw LaTeX if rendering fails
+    with col2:
+        with st.popover(":material/content_copy:"):
+            if st.button("LaTeX", type="tertiary"):
+                pyperclip.copy(sympy.latex(current_solution))
+            if st.button("Texte", type="tertiary"):
+                pyperclip.copy(f"f(x) = {current_solution.rhs}")
+
+    # Plot the solution if possible
+    st.subheader("Graphe")
+    sol_rhs = get_solution_rhs(current_solution, f_x)
+    fig, error = create_solution_plot(sol_rhs, x_sym)
+    if fig:
+        st.pyplot(fig)
+    elif error:
+        st.info(error)
+
+
+def display_multiple_solutions(current_solution):
+    st.info(f"Plusieurs ({len(current_solution)}) solutions ont été trouvées :")
+
+    solution_to_graph = None
+
+    for solution in current_solution:
+        empty_col, latex_col, action_col = st.columns([1, 8, 1])
+
+        try:
+            latex_col.latex(sympy.latex(solution))
+        except Exception as e:
+            latex_col.warning(f"Échec du rendu LaTeX : {e}")
+            latex_col.text(sympy.latex(solution))  # Show raw LaTeX if rendering fails
+
+        with action_col.popover(""):
+            if st.button("Copier le LaTeX", type="tertiary", key=f"latex-copy-{solution}"):
+                pyperclip.copy(sympy.latex(current_solution))
+            if st.button("Copier le texte", type="tertiary", key=f"text-copy-{solution}"):
+                pyperclip.copy(f"f(x) = {current_solution.rhs}")
+            if st.button("Tracer", type="tertiary", key=f"graph-{solution}"):
+                solution_to_graph = solution
+
+    if solution_to_graph is not None:
+        st.subheader("Graphe")
+        sol_rhs = get_solution_rhs(solution_to_graph, f_x)
+        fig, error = create_solution_plot(sol_rhs, x_sym)
+        if fig:
+            st.pyplot(fig)
+        elif error:
+            st.info(error)
 
 
 def show_intructions():
