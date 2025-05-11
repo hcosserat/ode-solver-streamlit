@@ -339,7 +339,14 @@ def display_solutions(solutions):
         elif error:
             st.info(error)
 
-        st.subheader("Dérivées")
+        header_col, button_col = st.columns([8, 1], vertical_alignment="bottom")
+
+        with header_col:
+            st.subheader("Dérivées")
+
+        with button_col:
+            st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")  # todo: ajouter solution_to_study en parametre
+
         higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
         for order in range(1, higher_derivative + 1):
             st.latex(sympy.latex(compute_nth_derivative(solution_to_study, order)))
