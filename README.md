@@ -1,3 +1,4 @@
-Solveur d'équations différentielles ordinaires développé dans le cadre du PIDR.
+Simple projet Streamlit pour résoudre des équations différentielles ordinaires grâce à SymPy, réalisée
+dans le cadre du PIDR.
 
-Le solveur peut être accédé à l'addresse [ode-solver-pidr.streamlit.app](https://ode-solver-pidr.streamlit.app/).
+Application disponible sur [ode-solver-pidr.streamlit.app](https://ode-solver-pidr.streamlit.app/).
