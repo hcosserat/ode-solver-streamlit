@@ -353,7 +353,7 @@ def show_intructions():
             * Vous pouvez écrire des équations comme `f'(x) + f(x) = 0` ou simplement l'expression `f'(x) + f(x)` (qui sera supposément égale à zéro).
             * Vous pouvez utiliser d'autres fonctions dans votre EDO, comme des fonctions classiques (cos, log, exp, Gamma...) ou des fonctions inconnues (parmi g, h, o, p, q, r, s, t, u, v et w).
             * Certaines lettres grecques sont disponibles (écrites en minuscules), voir les exemples.
-            * Vous pouvez ajouter d'autre EDO pour former un système en appuyant sur :gray[:material/list_alt: Système].
+            * Vous pouvez ajouter d'autres EDO pour former un système en appuyant sur :gray-badge[:material/list_alt: Système].
         2.  L'application détectera l'ordre de l'équation et propose de rentrer des conditions initiales. Les réponses seront données avec des variables si aucune condition n'est précisée.
         4.  Appuyez sur :red-background[:material/calculate: Résoudre] pour obtenir une solution et un graphe si possible.
 
