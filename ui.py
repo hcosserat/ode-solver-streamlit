@@ -1,10 +1,9 @@
 import pyperclip
 import streamlit as st
-import sympy
 
-from plotter import create_solution_plot
-from solver import x_sym, f_x, parse_ode, solve_ode, get_solution_rhs
-from utils import show_error
+from math import *
+from plotter import *
+from utils import *
 
 
 def setup_page():
@@ -64,22 +63,22 @@ def render_equation_input():
             st.sidebar.latex(sympy.latex(st.session_state.ode_eq))
         except Exception as e:
             st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
+            st.sidebar.text(str(st.session_state.ode_eq))
 
     return ode_eq, ode_order
 
 
 def render_initial_conditions():
     """Render the initial conditions input section."""
-    st.sidebar.header("Conditions initiales :")
     if st.session_state.ode_order > 0:
-        st.session_state.use_ics = st.sidebar.checkbox(
-            "Rentrer des conditions initiales ?",
+        st.session_state.use_ics = st.sidebar.toggle(
+            "Rentrer des conditions initiales",
             value=st.session_state.use_ics
         )
 
         if st.session_state.use_ics:
             st.session_state.ics_values = {}  # Reset if checkbox state changes
-            st.sidebar.markdown(f"Rentrez jusqu'à {st.session_state.ode_order} conditions :")
+            st.sidebar.markdown(f"Rentrez jusqu'à {st.session_state.ode_order} condition{'s' if st.session_state.ode_order > 1 else ''} :")
             for i in range(st.session_state.ode_order):
                 deriv_label = "f" + "".join(["'" for _ in range(i)])
                 cols = st.sidebar.columns([2, 1, 1])
@@ -98,22 +97,6 @@ def render_initial_conditions():
         st.session_state.use_ics = False  # Disable if no order
 
     return st.session_state.use_ics, st.session_state.ics_values
-
-
-def prepare_ics_dict(use_ics, ics_values):
-    """Prepare the initial conditions dictionary for dsolve."""
-    ics_dict = {}
-    if use_ics and ics_values:
-        for i, vals in ics_values.items():
-            x_val = vals['x0']
-            y_val = vals['y0']
-            if i == 0:
-                # Condition for y(x0)
-                ics_dict[f_x.subs(x_sym, x_val)] = y_val
-            else:
-                # Condition for n-th derivative y^(n)(x0)
-                ics_dict[f_x.diff((x_sym, i)).subs(x_sym, x_val)] = y_val
-    return ics_dict
 
 
 def render_system_input():
@@ -140,6 +123,7 @@ def render_system_input():
                     st.sidebar.latex(sympy.latex(ode_eq))
                 except Exception as e:
                     st.sidebar.warning(f"Échec du rendu LaTeX : {e}")
+                    st.sidebar.text(str(ode_eq))
 
             st.session_state.system_equations[i] = updated_eq
         with cols[1]:
@@ -173,7 +157,7 @@ def render_solve_button():
                               and st.session_state.ode_parsed_successfully
                               and st.session_state.ode_order > 0)
 
-    solve_button = st.sidebar.button("Résoudre", type="primary", use_container_width=True,
+    solve_button = st.sidebar.button(":material/calculate: Résoudre", type="primary", use_container_width=True,
                                      disabled=(not ode_ready_to_be_solved))
     system_button = st.sidebar.button(":gray[:material/list_alt: Système]", type="tertiary", use_container_width=True)
 
@@ -198,7 +182,7 @@ def render_solve_system_button():
                               and st.session_state.ode_parsed_successfully
                               and len(st.session_state.system_equations) > 1)
 
-    solve_button = st.sidebar.button("Résoudre", type="primary", use_container_width=True,
+    solve_button = st.sidebar.button(":material/calculate: Résoudre", type="primary", use_container_width=True,
                                      disabled=(not ode_ready_to_be_solved))
     quit_system_button = st.sidebar.button(":gray[:material/close: Quitter le mode Système]", type="tertiary", use_container_width=True)
 
@@ -277,7 +261,6 @@ def display_solution():
             st.warning("Aucune solution n'a été trouvée, l'équation est peut-être triviale (par exemple 0=0).")
 
         elif use_system_display:
-            print(st.session_state)
             display_system_solution(solution)
 
         elif isinstance(solution, list):
@@ -286,7 +269,7 @@ def display_solution():
         else:
             display_solutions([solution])
     else:
-        st.info("Entrez une EDO et cliquez sur \"Résoudre\" pour calculer une solution.")
+        st.info("Entrez une EDO et cliquez sur :red-background[:material/calculate: Résoudre] pour calculer une solution.")
 
 
 def display_system_solution(solution):
@@ -322,9 +305,9 @@ def display_solutions(solutions):
 
     if multiple_solutions:
         st.info(f"Plusieurs ({len(solutions)}) solutions ont été trouvées")
-        solution_to_graph = None
+        solution_to_study = None
     else:
-        solution_to_graph = solutions[0]
+        solution_to_study = solutions[0]
 
     for i, solution in enumerate(solutions):
         if multiple_solutions:
@@ -336,40 +319,46 @@ def display_solutions(solutions):
             latex_col.latex(sympy.latex(solution))
         except Exception as e:
             latex_col.warning(f"Échec du rendu LaTeX : {e}")
-            latex_col.text(sympy.latex(solution))  # Show raw LaTeX if rendering fails
+            latex_col.text(str(solution))
 
         with action_col.popover(""):
             if st.button("Copier le LaTeX", type="tertiary", key=f"latex-copy-{solution}"):
-                pyperclip.copy(sympy.latex(solutions))
+                pyperclip.copy(sympy.latex(solution))
             if st.button("Copier le texte", type="tertiary", key=f"text-copy-{solution}"):
-                pyperclip.copy(f"f(x) = {solutions.rhs}")
-            if multiple_solutions and st.button("Tracer", type="tertiary", key=f"graph-{solution}"):
-                solution_to_graph = solution
+                pyperclip.copy(f"f(x) = {solution.rhs}")
+            if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{solution}"):
+                solution_to_study = solution
 
-    if solution_to_graph is not None:
+    if solution_to_study is not None:
         st.subheader("Graphe")
-        sol_rhs = get_solution_rhs(solution_to_graph, f_x)
+        sol_rhs = get_solution_rhs(solution_to_study, f_x)
         fig, error = create_solution_plot(sol_rhs, x_sym)
         if fig:
             st.pyplot(fig)
         elif error:
             st.info(error)
 
+        st.subheader("Dérivées")
+        higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
+        for order in range(1, higher_derivative + 1):
+            st.latex(sympy.latex(compute_nth_derivative(solution_to_study, order)))
+
 
 def show_intructions():
-    st.markdown("""
+    st.markdown(r"""
         ### :material/info: Instructions :
         1.  Entrez votre EDO sur le paneau de gauche. Utilisez `f(x)` pour la fonction solution et `x` pour la variable.
-            * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)` ou `Derivative(f(x), (x, 3))`
+            * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)` ou `Derivative(f(x), (x, 3))`.
             * Vous pouvez écrire des équations comme `f'(x) + f(x) = 0` ou simplement l'expression `f'(x) + f(x)` (qui sera supposément égale à zéro).
-            * Vous pouvez utiliser d'autres fonctions dans votre EDO, comme des fonctions classiques (cos, log, exp, Gamma...) ou des fonctions inconnues (parmi g, h, o, p, q, r, s, t, u, v et w)
-            * Certaines lettres grecques sont disponibles (écrites en minuscules), voir les exemples
+            * Vous pouvez utiliser d'autres fonctions dans votre EDO, comme des fonctions classiques (cos, log, exp, Gamma...) ou des fonctions inconnues (parmi g, h, o, p, q, r, s, t, u, v et w).
+            * Certaines lettres grecques sont disponibles (écrites en minuscules), voir les exemples.
+            * Vous pouvez ajouter d'autre EDO pour former un système en appuyant sur :gray[:material/list_alt: Système].
         2.  L'application détectera l'ordre de l'équation et propose de rentrer des conditions initiales. Les réponses seront données avec des variables si aucune condition n'est précisée.
-        4.  Appuyez sur "Résoudre" pour obtenir une solution et un graphe si possible.
+        4.  Appuyez sur :red-background[:material/calculate: Résoudre] pour obtenir une solution et un graphe si possible.
 
         ### :material/assignment: Exemples :
         
-        #### Équations linéaires de 1er ordre
+        Équations linéaires de 1er ordre
 
         $f'(x) = -k f(x)$ : `f'(x) = -k*f(x)`
 
@@ -385,9 +374,9 @@ def show_intructions():
 
         $m f''(x) = -mg - \gamma f'(x)$ : `m * f''(x) = -mg - gamma * f'(x)`
 
-        $f'(x) = -\\rho f(x)$ : `f'(x) = -rho * f(x)`
+        $f'(x) = -\rho f(x)$ : `f'(x) = -rho * f(x)`
 
-        $f'(x) = r f(x)\left(1 - \dfrac{f(x)}{K}\\right)$ : `f'(x) = r * f(x) * (1 - f(x)/K)`
+        $f'(x) = r f(x)\left(1 - \dfrac{f(x)}{K}\right)$ : `f'(x) = r * f(x) * (1 - f(x)/K)`
 
         #### Équations non linéaires
 
@@ -403,10 +392,8 @@ def show_intructions():
         
         #### Systèmes d'équations
         
-        $\\begin{cases}f'(x) = f(x) \\\\ g'(x) = f(x) + g(x) \end{cases}$ : `f'(x) = f(x)`, `g'(x) = f(x) + g(x)`
+        $\begin{cases}f'(x) = f(x) \\ g'(x) = f(x) + g(x) \end{cases}$ : `f'(x) = f(x)`, `g'(x) = f(x) + g(x)`
         
-        $\\begin{cases}f'(x) = 3f(x) + g(x) \\\\ g'(x) = f(x) + 3g(x) \end{cases}$ : `f'(x) = 3*f(x) + g(x)`, `g'(x) = f(x) + 3*g(x)`
-        
-        """)
+        $\begin{cases}f'(x) = 3f(x) + g(x) \\ g'(x) = f(x) + 3g(x) \end{cases}$ : `f'(x) = 3*f(x) + g(x)`, `g'(x) = f(x) + 3*g(x)`""")
     st.markdown("""---""")
     st.markdown("""Fait avec :streamlit: Streamlit, SymPy et Matplotlib""")

@@ -5,7 +5,6 @@ from sympy import Function, Derivative, Eq, dsolve, symbols, S
 from sympy import gamma as Gamma, zeta as Zeta, beta as Beta
 from sympy.parsing.sympy_parser import parse_expr, standard_transformations, implicit_multiplication_application
 
-# --- SymPy Setup ---
 # Setup for parsing expressions
 transformations = standard_transformations + (implicit_multiplication_application,)
 local_dict = {
@@ -135,6 +134,22 @@ def parse_ode(ode_string):
         return None, 0, f"Erreur de parsing, verifiez la syntaxe ({e})."
 
 
+def prepare_ics_dict(use_ics, ics_values):
+    """Prepare the initial conditions dictionary for dsolve."""
+    ics_dict = {}
+    if use_ics and ics_values:
+        for i, vals in ics_values.items():
+            x_val = vals['x0']
+            y_val = vals['y0']
+            if i == 0:
+                # Condition for y(x0)
+                ics_dict[f_x.subs(x_sym, x_val)] = y_val
+            else:
+                # Condition for n-th derivative y^(n)(x0)
+                ics_dict[f_x.diff((x_sym, i)).subs(x_sym, x_val)] = y_val
+    return ics_dict
+
+
 def solve_ode(ode_eq, ics_dict=None):
     """Solve the ODE with optional initial conditions."""
     try:
@@ -149,3 +164,9 @@ def solve_ode(ode_eq, ics_dict=None):
         return None, f"Une erreur est survenue durant la résolution ({e})"
     except Exception as e:
         return None, f"Une erreur imprévue est survenue durant la résolution ({e})"
+
+
+def compute_nth_derivative(eq, n):
+    lhs = eq.lhs
+    rhs = eq.rhs
+    return Eq(sympy.diff(lhs, (x_sym, n)), sympy.diff(rhs, (x_sym, n)))
