@@ -1,7 +1,8 @@
 import pyperclip
 import streamlit as st
+import sympy
 
-from math import *
+from calc import parse_ode, x_sym, f_x, prepare_ics_dict, solve_ode, get_solution_rhs, compute_nth_derivative
 from plotter import *
 from utils import *
 
