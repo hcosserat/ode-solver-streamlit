@@ -323,21 +323,53 @@ def display_solutions(solutions):
             latex_col.text(str(solution))
 
         with action_col.popover(""):
-            if st.button("Copier le LaTeX", type="tertiary", key=f"latex-copy-{solution}"):
+            if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{i}"):
                 pyperclip.copy(sympy.latex(solution))
-            if st.button("Copier le texte", type="tertiary", key=f"text-copy-{solution}"):
+            if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}"):
                 pyperclip.copy(f"f(x) = {solution.rhs}")
-            if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{solution}"):
+            if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{i}"):
                 solution_to_study = solution
 
     if solution_to_study is not None:
         st.subheader("Graphe")
         sol_rhs = get_solution_rhs(solution_to_study, f_x)
-        fig, error = create_solution_plot(sol_rhs, x_sym)
-        if fig:
-            st.pyplot(fig)
-        elif error:
-            st.info(error)
+
+        # First check for constants to create input fields if needed
+        _, constants, _ = create_solution_plot(sol_rhs, x_sym)
+
+        # Handle constants if present
+        constants_values = {}
+        if constants:
+            st.warning(f"Les constantes doivent être précisées pour le graphe")
+
+            cols = st.columns(min(4, len(constants)))
+            for idx, const in enumerate(constants):
+                col = cols[idx % len(cols)]
+                constants_values[str(const)] = col.number_input(
+                    f"Valeur pour {const}", value=1.0, step=0.1, key=f"const_{const}"
+                )
+
+            # Plot with constants
+            if st.button("Tracer avec ces valeurs"):
+                fig, _, error = create_solution_plot(sol_rhs, x_sym, constants_values=constants_values)
+                if fig:
+                    st.pyplot(fig)
+                    # Add Geogebra button with constants applied
+                    geogebra_url = generate_geogebra_url(sol_rhs.subs({sympy.Symbol(const): val for const, val in
+                                                                       constants_values.items()}))
+                    st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
+                elif error:
+                    st.info(error)
+        else:
+            # Normal plot with no constants
+            fig, _, error = create_solution_plot(sol_rhs, x_sym)
+            if fig:
+                st.pyplot(fig)
+                # Add Geogebra button
+                geogebra_url = generate_geogebra_url(sol_rhs)
+                st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
+            elif error:
+                st.info(error)
 
         header_col, button_col = st.columns([8, 1], vertical_alignment="bottom")
 
@@ -345,7 +377,7 @@ def display_solutions(solutions):
             st.subheader("Dérivées")
 
         with button_col:
-            st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")  # todo: ajouter solution_to_study en parametre
+            st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")
 
         higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
         for order in range(1, higher_derivative + 1):
@@ -405,3 +437,17 @@ def show_intructions():
         $\begin{cases}f'(x) = 3f(x) + g(x) \\ g'(x) = f(x) + 3g(x) \end{cases}$ : `f'(x) = 3*f(x) + g(x)`, `g'(x) = f(x) + 3*g(x)`""")
     st.markdown("""---""")
     st.markdown("""Fait avec :streamlit: Streamlit, SymPy et Matplotlib""")
+
+
+def generate_geogebra_url(expr):
+    """Generate a URL to open the expression in GeoGebra."""
+    import urllib.parse
+
+    # Convert SymPy expression to string that GeoGebra can parse
+    expr_str = str(expr).replace('**', '^').replace('*', ' ')
+
+    # Create GeoGebra URL
+    expr_encoded = urllib.parse.quote(f'y = {expr_str}')
+    geogebra_url = f"https://www.geogebra.org/calculator?command={expr_encoded}"
+
+    return geogebra_url
