@@ -37,6 +37,10 @@ def initialize_session_state():
         st.session_state.system_funcs = []
     if 'use_other_mod_for_solution_display' not in st.session_state:
         st.session_state.use_other_mod_for_solution_display = False
+    if 'current_plot_range' not in st.session_state:
+        st.session_state.current_plot_range = (-5, 5)
+    if 'current_constants_values' not in st.session_state:
+        st.session_state.current_constants_values = {}
 
 
 def render_equation_input():
@@ -93,9 +97,13 @@ def render_initial_conditions():
 
                 # Store IC: y_val at x_val for the i-th derivative
                 st.session_state.ics_values[i] = {'x0': x0_val, 'y0': y0_val}
+
+            f_x0 = st.session_state.ics_values[0]["x0"]
+            st.session_state.current_plot_range = (f_x0 - 5, f_x0 + 5)
     else:
         st.sidebar.info("Entrez une EDO valide pour rentrer les conditions initiales.")
         st.session_state.use_ics = False  # Disable if no order
+        st.session_state.current_plot_range = (-5, 5)
 
     return st.session_state.use_ics, st.session_state.ics_values
 
@@ -197,6 +205,7 @@ def render_solve_system_button():
 
     if solve_button:
         st.session_state.use_other_mod_for_solution_display = False
+        st.session_state.current_plot_range = (-5, 5)
         solve_system()
 
 
@@ -335,41 +344,71 @@ def display_solutions(solutions):
         sol_rhs = get_solution_rhs(solution_to_study, f_x)
 
         # First check for constants to create input fields if needed
-        _, constants, _ = create_solution_plot(sol_rhs, x_sym)
+        _, constants, _ = create_solution_plot(sol_rhs, x_sym,
+                                               st.session_state.current_plot_range,
+                                               st.session_state.current_constants_values)
 
         # Handle constants if present
-        constants_values = {}
         if constants:
             st.warning(f"Les constantes doivent être précisées pour le graphe")
 
-            cols = st.columns(min(4, len(constants)))
+            constants_values = {}
+
             for idx, const in enumerate(constants):
-                col = cols[idx % len(cols)]
-                constants_values[str(const)] = col.number_input(
+                constants_values[str(const)] = st.number_input(
                     f"Valeur pour {const}", value=1.0, step=0.1, key=f"const_{const}"
                 )
 
+            st.session_state.current_constants_values = constants_values
+
             # Plot with constants
-            if st.button("Tracer avec ces valeurs"):
-                fig, _, error = create_solution_plot(sol_rhs, x_sym, constants_values=constants_values)
-                if fig:
-                    st.pyplot(fig)
-                    # Add Geogebra button with constants applied
-                    geogebra_url = generate_geogebra_url(sol_rhs.subs({sympy.Symbol(const): val for const, val in
-                                                                       constants_values.items()}))
-                    st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
-                elif error:
-                    st.info(error)
-        else:
-            # Normal plot with no constants
-            fig, _, error = create_solution_plot(sol_rhs, x_sym)
+            col1, col2 = st.columns(2)
+            with col1:
+                left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
+            with col2:
+                right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
+
+            # Make sure left is less than right
+            if left_range >= right_range:
+                st.warning("La borne gauche doit être inférieure à la borne droite")
+                # Adjust to ensure a valid range
+                right_range = left_range + 1
+
+            st.session_state.current_plot_range = (left_range, right_range)
+
+            fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range, constants_values=constants_values)
             if fig:
                 st.pyplot(fig)
-                # Add Geogebra button
-                geogebra_url = generate_geogebra_url(sol_rhs)
-                st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
             elif error:
                 st.info(error)
+            # Add Geogebra button with constants applied
+            geogebra_url = generate_geogebra_url(sol_rhs.subs({sympy.Symbol(const): val for const, val in
+                                                               constants_values.items()}))
+            st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
+            with col2:
+                right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
+
+            # Make sure left is less than right
+            if left_range >= right_range:
+                st.warning("La borne gauche doit être inférieure à la borne droite")
+                # Adjust to ensure a valid range
+                right_range = left_range + 1
+
+            st.session_state.current_plot_range = (left_range, right_range)
+
+            # Normal plot with no constants
+            fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range)
+            if fig:
+                st.pyplot(fig)
+            elif error:
+                st.info(error)
+            # Add Geogebra button
+            geogebra_url = generate_geogebra_url(sol_rhs)
+            st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
 
         header_col, button_col = st.columns([8, 1], vertical_alignment="bottom")
 

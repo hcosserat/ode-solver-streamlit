@@ -3,7 +3,7 @@ import numpy as np
 from sympy import lambdify
 
 
-def create_solution_plot(sol_rhs, x_sym, x_range=None, num_points=1000, constants_values=None):
+def create_solution_plot(sol_rhs, x_sym, x_range, num_points=1000, constants_values=None):
     """Create a plot of the solution with smart range selection."""
     if sol_rhs is None:
         return None, "Solution indisponible pour le graphe"
@@ -29,10 +29,6 @@ def create_solution_plot(sol_rhs, x_sym, x_range=None, num_points=1000, constant
         # Prepare for numerical evaluation
         modules_for_lambdify = ['numpy', {'Heaviside': lambda x: np.heaviside(x, 0.5)}]
         y_numpy_func = lambdify(x_sym, sol_rhs, modules=modules_for_lambdify)
-
-        # Determine interesting range if not specified
-        if x_range is None:
-            x_range = find_interesting_range(y_numpy_func)
 
         # Generate x values for plotting
         x_vals_plot = np.linspace(x_range[0], x_range[1], num_points)
