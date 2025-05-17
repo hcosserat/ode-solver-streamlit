@@ -310,7 +310,7 @@ def display_system_solution(solution):
                     if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{i}-{j}"):
                         pyperclip.copy(sympy.latex(sol))
                     if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}-{j}"):
-                        pyperclip.copy(str(sol))
+                        pyperclip.copy(str(sol).replace("**", "^"))
                     if st.button("Étudier", type="tertiary", key=f"study-{i}-{j}"):
                         solution_to_study = sol
 
@@ -343,7 +343,7 @@ def display_solutions(solutions):
             if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{i}"):
                 pyperclip.copy(sympy.latex(solution))
             if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}"):
-                pyperclip.copy(f"f(x) = {solution.rhs}")
+                pyperclip.copy(f"f(x) = {str(solution.rhs).replace('**', '^')}")
             if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{i}"):
                 solution_to_study = solution
 
@@ -425,8 +425,18 @@ def study_sol(solution_to_study):
     with button_col:
         st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")
     higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
+
     for order in range(1, higher_derivative + 1):
-        st.latex(sympy.latex(compute_nth_derivative(solution_to_study, order)))
+        empty_col, latex_col, action_col = st.columns([1, 8, 1], vertical_alignment="bottom")
+
+        derivative = compute_nth_derivative(solution_to_study, order)
+        latex_col.latex(sympy.latex(derivative))
+
+        with action_col.popover(""):
+            if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{order}"):
+                pyperclip.copy(sympy.latex(derivative))
+            if st.button("Copier texte", type="tertiary", key=f"text-copy-{order}"):
+                pyperclip.copy(str(derivative).replace('**', '^'))
 
 
 def show_intructions():
