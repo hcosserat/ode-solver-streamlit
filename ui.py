@@ -288,6 +288,9 @@ def display_system_solution(solution):
 
     if multiple_solutions:
         st.info(f"Plusieurs ({len(solution)}) solutions ont été trouvées pour le système")
+        solution_to_study = None
+    else:
+        solution_to_study = solution[0]
 
     for i, sol_set in enumerate(solution):
         if multiple_solutions:
@@ -308,6 +311,11 @@ def display_system_solution(solution):
                         pyperclip.copy(sympy.latex(sol))
                     if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}-{j}"):
                         pyperclip.copy(str(sol))
+                    if st.button("Étudier", type="tertiary", key=f"study-{i}-{j}"):
+                        solution_to_study = sol
+
+    if solution_to_study is not None:
+        study_sol(solution_to_study)  # todo: verifier si ça marche avec toutes les vars et tout
 
 
 def display_solutions(solutions):
@@ -340,94 +348,92 @@ def display_solutions(solutions):
                 solution_to_study = solution
 
     if solution_to_study is not None:
-        st.subheader("Graphe")
-        sol_rhs = get_solution_rhs(solution_to_study, f_x)
+        study_sol(solution_to_study)
 
-        # First check for constants to create input fields if needed
-        _, constants, _ = create_solution_plot(sol_rhs, x_sym,
-                                               st.session_state.current_plot_range,
-                                               st.session_state.current_constants_values)
 
-        # Handle constants if present
-        if constants:
-            st.warning(f"Les constantes doivent être précisées pour le graphe")
+def study_sol(solution_to_study):
+    st.subheader("Graphe")
+    sol_rhs = get_solution_rhs(solution_to_study, f_x)
+    # First check for constants to create input fields if needed
+    _, constants, _ = create_solution_plot(sol_rhs, x_sym,
+                                           st.session_state.current_plot_range,
+                                           st.session_state.current_constants_values)
+    # Handle constants if present
+    if constants:
+        st.warning(f"Les constantes doivent être précisées pour le graphe")
 
-            constants_values = {}
+        constants_values = {}
 
-            for idx, const in enumerate(constants):
-                constants_values[str(const)] = st.number_input(
-                    f"Valeur pour {const}", value=1.0, step=0.1, key=f"const_{const}"
-                )
+        for idx, const in enumerate(constants):
+            constants_values[str(const)] = st.number_input(
+                f"Valeur pour {const}", value=1.0, step=0.1, key=f"const_{const}"
+            )
 
-            st.session_state.current_constants_values = constants_values
+        st.session_state.current_constants_values = constants_values
 
-            # Plot with constants
-            col1, col2 = st.columns(2)
-            with col1:
-                left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
-            with col2:
-                right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
+        # Plot with constants
+        col1, col2 = st.columns(2)
+        with col1:
+            left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
+        with col2:
+            right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
 
-            # Make sure left is less than right
-            if left_range >= right_range:
-                st.warning("La borne gauche doit être inférieure à la borne droite")
-                # Adjust to ensure a valid range
-                right_range = left_range + 1
+        # Make sure left is less than right
+        if left_range >= right_range:
+            st.warning("La borne gauche doit être inférieure à la borne droite")
+            # Adjust to ensure a valid range
+            right_range = left_range + 1
 
-            st.session_state.current_plot_range = (left_range, right_range)
+        st.session_state.current_plot_range = (left_range, right_range)
 
-            fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range, constants_values=constants_values)
-            if fig:
-                st.pyplot(fig)
-            elif error:
-                st.info(error)
-            # Add Geogebra button with constants applied
-            geogebra_url = generate_geogebra_url(sol_rhs.subs({sympy.Symbol(const): val for const, val in
-                                                               constants_values.items()}))
-            st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
-        else:
-            col1, col2 = st.columns(2)
-            with col1:
-                left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
-            with col2:
-                right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
+        fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range, constants_values=constants_values)
+        if fig:
+            st.pyplot(fig)
+        elif error:
+            st.info(error)
+        # Add Geogebra button with constants applied
+        geogebra_url = generate_geogebra_url(sol_rhs.subs({sympy.Symbol(const): val for const, val in
+                                                           constants_values.items()}))
+        st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
+    else:
+        col1, col2 = st.columns(2)
+        with col1:
+            left_range = st.number_input("Borne gauche", value=st.session_state.current_plot_range[0])
+        with col2:
+            right_range = st.number_input("Borne droite", value=st.session_state.current_plot_range[1])
 
-            # Make sure left is less than right
-            if left_range >= right_range:
-                st.warning("La borne gauche doit être inférieure à la borne droite")
-                # Adjust to ensure a valid range
-                right_range = left_range + 1
+        # Make sure left is less than right
+        if left_range >= right_range:
+            st.warning("La borne gauche doit être inférieure à la borne droite")
+            # Adjust to ensure a valid range
+            right_range = left_range + 1
 
-            st.session_state.current_plot_range = (left_range, right_range)
+        st.session_state.current_plot_range = (left_range, right_range)
 
-            # Normal plot with no constants
-            fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range)
-            if fig:
-                st.pyplot(fig)
-            elif error:
-                st.info(error)
-            # Add Geogebra button
-            geogebra_url = generate_geogebra_url(sol_rhs)
-            st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
-
-        header_col, button_col = st.columns([8, 1], vertical_alignment="bottom")
-
-        with header_col:
-            st.subheader("Dérivées")
-
-        with button_col:
-            st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")
-
-        higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
-        for order in range(1, higher_derivative + 1):
-            st.latex(sympy.latex(compute_nth_derivative(solution_to_study, order)))
+        # Normal plot with no constants
+        fig, _, error = create_solution_plot(sol_rhs, x_sym, st.session_state.current_plot_range)
+        if fig:
+            st.pyplot(fig)
+        elif error:
+            st.info(error)
+        # Add Geogebra button
+        geogebra_url = generate_geogebra_url(sol_rhs)
+        st.link_button("Ouvrir dans Geogebra", geogebra_url, type="secondary", icon=":material/open_in_new:")
+    header_col, button_col = st.columns([8, 1], vertical_alignment="bottom")
+    with header_col:
+        st.subheader("Dérivées")
+    with button_col:
+        st.link_button(":grey[:material/open_in_new: Calculateur]", type="tertiary", url="https://derivees-partielles-pidr.streamlit.app/")
+    higher_derivative = st.number_input("Ordre", min_value=1, value=st.session_state.ode_order, step=1)
+    for order in range(1, higher_derivative + 1):
+        st.latex(sympy.latex(compute_nth_derivative(solution_to_study, order)))
 
 
 def show_intructions():
     st.markdown(r"""
         ### :material/info: Instructions :
         1.  Entrez votre EDO sur le paneau de gauche. Utilisez `f(x)` pour la fonction solution et `x` pour la variable.
-            * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)` ou `Derivative(f(x), (x, 3))`.
+            * Pour les dérivées, vous pouvez utiliser `f'''(x)`, `f^(3)(x)`, `f(3)(x)`, `f3(x)` ou encore `Derivative(f(x), (x, 3))`.
             * Vous pouvez écrire des équations comme `f'(x) + f(x) = 0` ou simplement l'expression `f'(x) + f(x)` (qui sera supposément égale à zéro).
             * Vous pouvez utiliser d'autres fonctions dans votre EDO, comme des fonctions classiques (cos, log, exp, Gamma...) ou des fonctions inconnues (parmi g, h, o, p, q, r, s, t, u, v et w).
             * Certaines lettres grecques sont disponibles (écrites en minuscules), voir les exemples.

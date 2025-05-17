@@ -80,6 +80,7 @@ def prepare_ode_input(ode_string: str):
     Preprocesses ODE input by converting:
     - f'(x), g'(x), h'(x), etc. to Derivative(f(x), (x, n))
     - f^(n)(x), g^(n)(x), etc. to Derivative(f(x), (x, n))
+    - fn(x), gn(x), etc. to Derivative(f(x), (x, n))
     - F(f, x) = G(f, x) to Eq(F(f, x), G(f, x))
     - a^b to a**b
     """
@@ -99,8 +100,17 @@ def prepare_ode_input(ode_string: str):
         derivative_order = int(match.group(2))
         return f"Derivative({func_name}(x), (x, {derivative_order}))"
 
+    # Handle fn(x), gn(x), etc. notation for any single letter function except x
+    pattern3 = r"([a-wyzA-Z])(\d+)\(x\)"
+
+    def replacement3(match):
+        func_name = match.group(1)
+        derivative_order = int(match.group(2))
+        return f"Derivative({func_name}(x), (x, {derivative_order}))"
+
     processed_string = re.sub(pattern1, replacement1, ode_string)
     processed_string = re.sub(pattern2, replacement2, processed_string)
+    processed_string = re.sub(pattern3, replacement3, processed_string)
 
     # Handle natural equality notation
     if len(sides := processed_string.split("=")) == 2:
