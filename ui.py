@@ -483,7 +483,7 @@ def show_intructions():
 
         $f'(x) + p(x)f(x) = q(x)f(x)^n$ (équation de Bernoulli), par exemple : `f'(x) + 2*f(x)/x = f(x)^3`
 
-        $f'(x) = a(x)f(x)^2 + b(x)f(x) + c(x)$ (équation de Riccati), par exemple : `f(x) = cos(x)*f(x)**2 - f(x)/(x^2) + 2`
+        $f'(x) = a(x)f(x)^2 + b(x)f(x) + c(x)$ (équation de Riccati), par exemple : `f'(x) = f(x)^2 + f(x) + 1`
         
         #### Systèmes d'équations
         
