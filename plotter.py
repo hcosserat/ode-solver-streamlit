@@ -6,7 +6,7 @@ from sympy import lambdify
 def create_solution_plot(sol_rhs, x_sym, x_range, num_points=1000, constants_values=None):
     """Create a plot of the solution with smart range selection."""
     if sol_rhs is None:
-        return None, "Solution indisponible pour le graphe"
+        return None, None, "Solution indisponible pour le graphe"
 
     try:
         # Check for free symbols other than x (like C1, C2)

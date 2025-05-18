@@ -1,6 +1,7 @@
 import pyperclip
 import streamlit as st
 import sympy
+import urllib.parse
 
 from calc import parse_ode, x_sym, f_x, prepare_ics_dict, solve_ode, get_solution_rhs, compute_nth_derivative
 from plotter import *
@@ -45,6 +46,7 @@ def initialize_session_state():
 
 def render_equation_input():
     """Render the ODE input section."""
+    # todo: permettre l'importation/l'exportation de données
     st.sidebar.header("Équation")
     st.session_state.ode_string = st.sidebar.text_input(
         "Entrez votre EDO :",
@@ -288,9 +290,6 @@ def display_system_solution(solution):
 
     if multiple_solutions:
         st.info(f"Plusieurs ({len(solution)}) solutions ont été trouvées pour le système")
-        solution_to_study = None
-    else:
-        solution_to_study = solution[0]
 
     for i, sol_set in enumerate(solution):
         if multiple_solutions:
@@ -298,7 +297,7 @@ def display_system_solution(solution):
 
         if isinstance(sol_set, list):
             for j, sol in enumerate(sol_set):
-                empty_col, latex_col, action_col = st.columns([1, 8, 1])
+                empty_col, latex_col, action_col = st.columns([1, 8, 1], vertical_alignment="bottom")
 
                 try:
                     latex_col.latex(sympy.latex(sol))
@@ -306,16 +305,12 @@ def display_system_solution(solution):
                     latex_col.warning(f"Échec du rendu LaTeX : {e}")
                     latex_col.text(str(sol))
 
-                with action_col.popover(""):
+                with action_col.popover(":material/line_axis:"):
+                    st.link_button("Ouvrir dans Geogebra", generate_geogebra_url(sol.rhs), type="tertiary")
                     if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{i}-{j}"):
                         pyperclip.copy(sympy.latex(sol))
                     if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}-{j}"):
-                        pyperclip.copy(str(sol).replace("**", "^"))
-                    if st.button("Étudier", type="tertiary", key=f"study-{i}-{j}"):
-                        solution_to_study = sol
-
-    if solution_to_study is not None:
-        study_sol(solution_to_study)  # todo: verifier si ça marche avec toutes les vars et tout
+                        pyperclip.copy(str(sol).replace("**", "^"))  # todo: permettre de copier une partie de l'expression
 
 
 def display_solutions(solutions):
@@ -339,13 +334,13 @@ def display_solutions(solutions):
             latex_col.warning(f"Échec du rendu LaTeX : {e}")
             latex_col.text(str(solution))
 
-        with action_col.popover(""):
+        with action_col.popover(":material/line_axis:" if multiple_solutions else ":material/content_copy:"):
+            if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{i}"):
+                solution_to_study = solution
             if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{i}"):
                 pyperclip.copy(sympy.latex(solution))
             if st.button("Copier texte", type="tertiary", key=f"text-copy-{i}"):
                 pyperclip.copy(f"f(x) = {str(solution.rhs).replace('**', '^')}")
-            if multiple_solutions and st.button("Tracer ou dériver", type="tertiary", key=f"study-{i}"):
-                solution_to_study = solution
 
     if solution_to_study is not None:
         study_sol(solution_to_study)
@@ -432,7 +427,7 @@ def study_sol(solution_to_study):
         derivative = compute_nth_derivative(solution_to_study, order)
         latex_col.latex(sympy.latex(derivative))
 
-        with action_col.popover(""):
+        with action_col.popover(":material/content_copy:"):
             if st.button("Copier LaTeX", type="tertiary", key=f"latex-copy-{order}"):
                 pyperclip.copy(sympy.latex(derivative))
             if st.button("Copier texte", type="tertiary", key=f"text-copy-{order}"):
@@ -496,8 +491,6 @@ def show_intructions():
 
 def generate_geogebra_url(expr):
     """Generate a URL to open the expression in GeoGebra."""
-    import urllib.parse
-
     # Convert SymPy expression to string that GeoGebra can parse
     expr_str = str(expr).replace('**', '^').replace('*', ' ')
 
